@@ -20,6 +20,10 @@ import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.PlatformTransactionManager;
 
+/**
+ *
+ */
+
 @Configuration
 @EnableBatchProcessing
 public class SpringConfig {
@@ -29,7 +33,11 @@ public class SpringConfig {
 	
 	@Value("org/springframework/batch/core/schema-sqlite.sql")
     private Resource dataReopsitorySchema;
-	
+
+    /**
+     *
+     * @return
+     */
 	@Bean
 	public DataSource dataSource() {
 		final DriverManagerDataSource dataSource = new DriverManagerDataSource();
@@ -39,7 +47,13 @@ public class SpringConfig {
 		
 		return dataSource;
 	}
-	
+
+    /**
+     *
+     * @param dataSource
+     * @return
+     * @throws MalformedURLException
+     */
 	@Bean
     public DataSourceInitializer dataSourceInitializer(DataSource dataSource) throws MalformedURLException {
         ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator();
@@ -55,6 +69,11 @@ public class SpringConfig {
         return initializer;
     }
 
+    /**
+     *
+     * @return
+     * @throws Exception
+     */
 	private JobRepository getJobRepository() throws Exception {
         JobRepositoryFactoryBean factory = new JobRepositoryFactoryBean();
         factory.setDataSource(dataSource());
@@ -65,10 +84,19 @@ public class SpringConfig {
         return factory.getObject();
     }
 
+    /**
+     *
+     * @return
+     */
     private PlatformTransactionManager getTransactionManager() {
         return new ResourcelessTransactionManager();
     }
 
+    /**
+     *
+     * @return
+     * @throws Exception
+     */
     public JobLauncher getJobLauncher() throws Exception {
         SimpleJobLauncher jobLauncher = new SimpleJobLauncher();
         jobLauncher.setJobRepository(getJobRepository());

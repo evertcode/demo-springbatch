@@ -10,42 +10,54 @@ import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+/**
+ * Application
+ */
 public class DemoSpringBatchApplication {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(DemoSpringBatchApplication.class);
+    /**
+     * Logger instance
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(DemoSpringBatchApplication.class);
 
-	public static void main(String[] args) {
-		final AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
-		
-		ctx.register(SpringConfig.class);
-		ctx.register(SpringBatchConfig.class);
-		
-		ctx.refresh();
-		
-		runJob(ctx, "demoJob");
-		
-	}
+    /**
+     * Main entry point application
+     *
+     * @param args
+     */
+    public static void main(final String[] args) {
+        final AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
 
-	private static void runJob(AnnotationConfigApplicationContext ctx, String jobName) {
-		final JobLauncher jobLauncher = (JobLauncher) ctx.getBean("jobLauncher");
-		final Job job = (Job) ctx.getBean(jobName);
-		
-		LOGGER.info("Iniciando el Job: {}", jobName);
-		
-		try {
-			final JobParameters jobParameters = new JobParametersBuilder().addString("jobID", String.valueOf(System.currentTimeMillis()))
-	                .toJobParameters();
-			
-			final JobExecution  jobExecution = jobLauncher.run(job, jobParameters);
-			
-			LOGGER.info("Estatus del Job: {}", jobExecution.getStatus());
-			
-		}catch(final Exception e) {
-			LOGGER.error("Fallo el Job {}", e.getMessage(), e);
-		}
-		
-		
-	}
-	
-	
+        ctx.register(SpringConfig.class);
+        ctx.register(SpringBatchConfig.class);
+        ctx.refresh();
+
+        runJob(ctx);
+
+    }
+
+    /**
+     * Function for run job
+     * @param ctx
+     */
+    private static void runJob(final AnnotationConfigApplicationContext ctx) {
+        final JobLauncher jobLauncher = (JobLauncher) ctx.getBean("jobLauncher");
+        final Job job = (Job) ctx.getBean("demoJob");
+
+        LOGGER.info("Iniciando el Job: {}", "demoJob");
+
+        try {
+            final JobParameters jobParameters = new JobParametersBuilder().addString("jobID", String.valueOf(System.currentTimeMillis()))
+                    .toJobParameters();
+
+            final JobExecution jobExecution = jobLauncher.run(job, jobParameters);
+
+            LOGGER.info("Estatus del Job: {}", jobExecution.getStatus());
+
+        } catch (final Exception e) {
+            LOGGER.error("Fallo el Job {}", e.getMessage(), e);
+        }
+
+    }
+
 }
