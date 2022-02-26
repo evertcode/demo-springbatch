@@ -20,7 +20,6 @@ import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -33,95 +32,86 @@ import com.evertcode.app.model.User;
 @EnableBatchProcessing
 public class SpringBatchConfig {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(SpringBatchConfig.class);
-	
-	@Autowired
-	private JobBuilderFactory jobBuilderFactory;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SpringBatchConfig.class);
 
-	@Autowired
-	private StepBuilderFactory stepBuilderFactory;
+    @Value("input/demo.csv")
+    private Resource inputCsv;
 
-	@Autowired
-	private DataSource dataSource;
+    @Bean
+    public ItemReader<User> itemReader() {
 
-	@Value("input/demo.csv")
-	private Resource inputCsv;
+        final FlatFileItemReader<User> reader = new FlatFileItemReader<>();
+        final DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
+        final DefaultLineMapper<User> lineMapper = new DefaultLineMapper<>();
+        final BeanWrapperFieldSetMapper<User> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
+        final String[] tokens = {"id", "username", "transactiondate", "transactionamount"};
 
-	@Bean
-	public ItemReader<User> itemReader() {
+        tokenizer.setNames(tokens);
+        reader.setResource(this.inputCsv);
+        fieldSetMapper.setTargetType(User.class);
+        lineMapper.setLineTokenizer(tokenizer);
+        lineMapper.setFieldSetMapper(fieldSetMapper);
+        reader.setLineMapper(lineMapper);
 
-		final FlatFileItemReader<User> reader = new FlatFileItemReader<>();
-		final DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
-		final DefaultLineMapper<User> lineMapper = new DefaultLineMapper<>();
-		final BeanWrapperFieldSetMapper<User> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
-		final String[] tokens = { "id", "username", "transactiondate", "transactionamount" };
+        return reader;
+    }
 
-		tokenizer.setNames(tokens);
-		reader.setResource(this.inputCsv);
-		fieldSetMapper.setTargetType(User.class);
-		lineMapper.setLineTokenizer(tokenizer);
-		lineMapper.setFieldSetMapper(fieldSetMapper);
-		reader.setLineMapper(lineMapper);
+    @Bean
+    public ItemProcessor<User, User> itemProcessor() {
+        return new ItemProcessor<User, User>() {
 
-		return reader;
-	}
+            @Override
+            public User process(User item) throws Exception {
+                LOGGER.info("Persistiendo {}", item);
+                return item;
+            }
 
-	@Bean
-	public ItemProcessor<User, User> itemProcessor() {
-		return new ItemProcessor<User, User>() {
+        };
+    }
 
-			@Override
-			public User process(User item) throws Exception {
-				LOGGER.info("Persistiendo {}", item);
-				return item;
-			}
+    @Bean
+    public ItemWriter<User> itemWriter() {
+        return new ItemWriter<User>() {
 
-		};
-	}
+            @Override
+            public void write(List<? extends User> items) throws Exception {
+                for (User user : items) {
+                    LOGGER.info("{}", user);
+                }
+            }
 
-	@Bean
-	public ItemWriter<User> itemWriter() {
-		return new ItemWriter<User>() {
+        };
+    }
 
-			@Override
-			public void write(List<? extends User> items) throws Exception {
-				for (User user : items) {
-					LOGGER.info("{}", user);
-				}
-			}
+    @Bean
+    public JdbcBatchItemWriter<User> itemWriterJdbc(DataSource dataSource) {
+        JdbcBatchItemWriter<User> itemWriter = new JdbcBatchItemWriter<>();
 
-		};
-	}
-	
-	@Bean
-	public JdbcBatchItemWriter<User> itemWriterJdbc() {
-		JdbcBatchItemWriter<User> itemWriter = new JdbcBatchItemWriter<>();
+        itemWriter.setDataSource(dataSource);
+        itemWriter.setSql("INSERT INTO DEMO VALUES (:id, :username, :transactionDate, :transactionAmount)");
+        itemWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider());
+        itemWriter.afterPropertiesSet();
 
-		itemWriter.setDataSource(this.dataSource);
-		itemWriter.setSql("INSERT INTO DEMO VALUES (:id, :username, :transactionDate, :transactionAmount)");
-		itemWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider());
-		itemWriter.afterPropertiesSet();
+        return itemWriter;
+    }
 
-		return itemWriter;
-	} 
+    @Bean
+    protected Step demoStep(ItemReader<User> reader, ItemProcessor<User, User> processor, JdbcBatchItemWriter<User> writer, StepBuilderFactory stepBuilderFactory) {
+        return stepBuilderFactory
+                .get("demoStep")
+                .<User, User>chunk(2)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
+    }
 
-	@Bean
-	protected Step demoStep(ItemReader<User> reader, ItemProcessor<User, User> processor, JdbcBatchItemWriter<User> writer) {
-		return this.stepBuilderFactory
-				.get("demoStep")
-				.<User, User>chunk(2)
-				.reader(reader)
-				.processor(processor)
-				.writer(writer)
-				.build();
-	}
-
-	@Bean(name = "demoJob")
-	protected Job job(@Qualifier("demoStep") Step demoStep) {
-		return this.jobBuilderFactory
-				.get("demoJob")
-				.start(demoStep)
-				.build();
-	}
+    @Bean(name = "demoJob")
+    protected Job job(@Qualifier("demoStep") Step demoStep, JobBuilderFactory jobBuilderFactory) {
+        return jobBuilderFactory
+                .get("demoJob")
+                .start(demoStep)
+                .build();
+    }
 
 }
